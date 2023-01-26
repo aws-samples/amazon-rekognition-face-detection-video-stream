@@ -1,0 +1,361 @@
+Resources:
+  MyVideoStream:
+    Type: AWS::KinesisVideo::Stream
+    Properties:
+      DataRetentionInHours: 24
+    Metadata:
+      aws:cdk:path: iac/MyVideoStream
+  MyStream5C050E93:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: MyDataStream
+      RetentionPeriodHours: 24
+      StreamEncryption:
+        Fn::If:
+          - AwsCdkKinesisEncryptedStreamsUnsupportedRegions
+          - Ref: AWS::NoValue
+          - EncryptionType: KMS
+            KeyId: alias/aws/kinesis
+      StreamModeDetails:
+        StreamMode: ON_DEMAND
+    Metadata:
+      aws:cdk:path: iac/MyStream/Resource
+  FaceBucketA6DE3152:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: faces-collection-7ba1a36b-03fd-4a98-a0fc-a015558bfb2e
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: iac/Face_Bucket/Resource
+  MetadataBucket5616A0D0:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: metadata-rekognition-7ba1a36b-03fd-4a98-a0fc-a015558bfb2e
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: iac/Metadata_Bucket/Resource
+  IacQueue66AF34D6:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: iac/IacQueue/Resource
+  Role1ABCC5F0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: rekognition.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: iac/Role/Resource
+  LambdaStreamServiceRoleD3825572:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: iac/LambdaStream/ServiceRole/Resource
+  LambdaStreamServiceRoleDefaultPolicyE93EF59A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - kinesis:*
+              - s3-object-lambda:*
+              - s3:*
+              - sqs:*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - kinesis:DescribeStream
+              - kinesis:DescribeStreamSummary
+              - kinesis:GetRecords
+              - kinesis:GetShardIterator
+              - kinesis:ListShards
+              - kinesis:ListStreams
+              - kinesis:SubscribeToShard
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MyStream5C050E93
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: LambdaStreamServiceRoleDefaultPolicyE93EF59A
+      Roles:
+        - Ref: LambdaStreamServiceRoleD3825572
+    Metadata:
+      aws:cdk:path: iac/LambdaStream/ServiceRole/DefaultPolicy/Resource
+  LambdaStream4F925864:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c6e4766c1a1313213c3dc5b33ddeb586383f7113b48483b98361d1f96ab6947f.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaStreamServiceRoleD3825572
+          - Arn
+      Environment:
+        Variables:
+          queue_url_variable:
+            Ref: IacQueue66AF34D6
+          metadata_bucket_name_variable:
+            Ref: MetadataBucket5616A0D0
+          face_bucket_name_variable:
+            Ref: FaceBucketA6DE3152
+      Handler: notifier.lambda_handler
+      Runtime: python3.9
+    DependsOn:
+      - LambdaStreamServiceRoleDefaultPolicyE93EF59A
+      - LambdaStreamServiceRoleD3825572
+    Metadata:
+      aws:cdk:path: iac/LambdaStream/Resource
+      aws:asset:path: asset.c6e4766c1a1313213c3dc5b33ddeb586383f7113b48483b98361d1f96ab6947f
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  LambdaStreamKinesisEventSourceiacMyStream2C4FD494DF283D49:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: LambdaStream4F925864
+      BatchSize: 100
+      EventSourceArn:
+        Fn::GetAtt:
+          - MyStream5C050E93
+          - Arn
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: iac/LambdaStream/KinesisEventSource:iacMyStream2C4FD494/Resource
+  LambdaNotificationServiceRoleF905C1BA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: iac/LambdaNotification/ServiceRole/Resource
+  LambdaNotificationServiceRoleDefaultPolicy1FAFDF69:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ses:*
+              - sqs:*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - sqs:ChangeMessageVisibility
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:ReceiveMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - IacQueue66AF34D6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: LambdaNotificationServiceRoleDefaultPolicy1FAFDF69
+      Roles:
+        - Ref: LambdaNotificationServiceRoleF905C1BA
+    Metadata:
+      aws:cdk:path: iac/LambdaNotification/ServiceRole/DefaultPolicy/Resource
+  LambdaNotification21406F47:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 64e58e90c7551ac531bce4efc6dc6884cabc77554560cf358026a5a6293d6d4c.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaNotificationServiceRoleF905C1BA
+          - Arn
+      Handler: message-app.lambda_handler
+      Runtime: python3.9
+    DependsOn:
+      - LambdaNotificationServiceRoleDefaultPolicy1FAFDF69
+      - LambdaNotificationServiceRoleF905C1BA
+    Metadata:
+      aws:cdk:path: iac/LambdaNotification/Resource
+      aws:asset:path: asset.64e58e90c7551ac531bce4efc6dc6884cabc77554560cf358026a5a6293d6d4c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  LambdaNotificationSqsEventSourceiacIacQueue3C1419234EC5C08D:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: LambdaNotification21406F47
+      EventSourceArn:
+        Fn::GetAtt:
+          - IacQueue66AF34D6
+          - Arn
+    Metadata:
+      aws:cdk:path: iac/LambdaNotification/SqsEventSource:iacIacQueue3C141923/Resource
+  MyCfnCollection:
+    Type: AWS::Rekognition::Collection
+    Properties:
+      CollectionId: face_collection
+    Metadata:
+      aws:cdk:path: iac/MyCfnCollection
+  MyCfnStreamProcessor:
+    Type: AWS::Rekognition::StreamProcessor
+    Properties:
+      KinesisVideoStream:
+        Arn:
+          Fn::GetAtt:
+            - MyVideoStream
+            - Arn
+      RoleArn:
+        Fn::GetAtt:
+          - Role1ABCC5F0
+          - Arn
+      FaceSearchSettings:
+        CollectionId: face_collection
+        FaceMatchThreshold: 0.8
+      KinesisDataStream:
+        Arn:
+          Fn::GetAtt:
+            - MyStream5C050E93
+            - Arn
+      Name: stream-video-rekognition-processor
+    Metadata:
+      aws:cdk:path: iac/MyCfnStreamProcessor
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VQwW7DIAz9lt6J162qdl6r7TYpTT6gosTLvBBoMXSqEP++QKJcdnrPz89+hhfYb2G7kb9cqW6oNF0gtl6qQUzSOQ5kkInv1KGF45dpvUM5ikXO1lKvnSR4B/EQ1IA+qwub4SAZJ8NtmjsFDJgNhSRBcoTYWF20grXVpB65nFkSWo6XTkL8CEZ5sib3Vv5+R+NbG5zCT3m9kulz+7+aDzxLZvQMbxmEw8H2hvIWiNPM0WqNa8D8rNpZhczWpSSKxXRlQJQV03/1S2CDXNKSqB/+25qnHbzC837zw0SVC8bTiNDM+AdCrsdTewEAAA==
+    Metadata:
+      aws:cdk:path: iac/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  AwsCdkKinesisEncryptedStreamsUnsupportedRegions:
+    Fn::Or:
+      - Fn::Equals:
+          - Ref: AWS::Region
+          - cn-north-1
+      - Fn::Equals:
+          - Ref: AWS::Region
+          - cn-northwest-1
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+
