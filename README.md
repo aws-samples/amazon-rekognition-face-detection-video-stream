@@ -1,6 +1,6 @@
-## This sample demonstrates how to create a Face Recognition through Stream Video application with a serverless architecture using Python CDK.
+# Amazon Rekognition Face Detection using Video Stream
 
-
+## Architecture Overview
 ![Alt text](https://d195kho0tyqjph.cloudfront.net/Arquitetura-Blogpost.drawio.png "Solution Overview")
 
 1. Storage Pipeline: This component is responsible for storing the faces collection (bucket 1) that should be recognized during the video stream, and storing the Rekognition output metadata (bucket 2) for possible audits
