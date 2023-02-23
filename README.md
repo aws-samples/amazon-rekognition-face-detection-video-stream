@@ -25,7 +25,7 @@ Make sure you have AWS CDK installed and working, all the dependencies of this p
 
 
 1.
-<pre><code>git clone https://github.com/henriquelsz/amazon-rekogntion-face-detection-video-stream.git
+<pre><code>git clone https://github.com/aws-samples/amazon-rekognition-face-detection-video-stream
 cd iac
 </code></pre>
 2. Run <code>cdk deploy</code> and wait for the deployment to finish successfully;
