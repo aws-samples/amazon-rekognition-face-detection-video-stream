@@ -41,14 +41,16 @@ class IacStack(Stack):
             self,
             'Face_Bucket',
             bucket_name = 'faces-collection-{}'.format(unique_id1), 
-            encryption = s3.BucketEncryption.KMS_MANAGED
+            encryption = s3.BucketEncryption.KMS_MANAGED,
+            versioned = True
         )
         
         bucket_metadata = s3.Bucket(
             self,
             'Metadata_Bucket',
             bucket_name = 'metadata-rekognition-{}'.format(unique_id1),
-            encryption = s3.BucketEncryption.KMS_MANAGED
+            encryption = s3.BucketEncryption.KMS_MANAGED,
+            versioned = True
         )
         
         queue = sqs.Queue(
