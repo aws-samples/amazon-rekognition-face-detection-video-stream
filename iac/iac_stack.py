@@ -54,6 +54,7 @@ class IacStack(Stack):
         queue = sqs.Queue(
             self, "IacQueue",
             visibility_timeout=Duration.seconds(300),
+            encryption = sqs.QueueEncryption.KMS_MANAGED
         )
         
         
