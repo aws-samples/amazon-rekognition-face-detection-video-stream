@@ -27,31 +27,37 @@ class IacStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
         
         kvs = kinesisvideo.CfnStream(self, "MyVideoStream",
-            data_retention_in_hours=24
+            data_retention_in_hours = 24
         )
         
         kds = kinesis.Stream(self, "MyStream",
-            stream_name="MyDataStream",
+            stream_name = "MyDataStream",
             retention_period = Duration.hours(24),
-            stream_mode = kinesis.StreamMode.ON_DEMAND
+            stream_mode = kinesis.StreamMode.ON_DEMAND,
+            encryption = kinesis.StreamEncryption.MANAGED
             
         )
         
         bucket_faces = s3.Bucket(
             self,
             'Face_Bucket',
-            bucket_name = 'faces-collection-{}'.format(unique_id1)
+            bucket_name = 'faces-collection-{}'.format(unique_id1), 
+            encryption = s3.BucketEncryption.KMS_MANAGED,
+            versioned = True
         )
         
         bucket_metadata = s3.Bucket(
             self,
             'Metadata_Bucket',
-            bucket_name = 'metadata-rekognition-{}'.format(unique_id1)
+            bucket_name = 'metadata-rekognition-{}'.format(unique_id1),
+            encryption = s3.BucketEncryption.KMS_MANAGED,
+            versioned = True
         )
         
         queue = sqs.Queue(
             self, "IacQueue",
             visibility_timeout=Duration.seconds(300),
+            encryption = sqs.QueueEncryption.KMS_MANAGED
         )
         
         
