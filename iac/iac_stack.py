@@ -33,7 +33,8 @@ class IacStack(Stack):
         kds = kinesis.Stream(self, "MyStream",
             stream_name = "MyDataStream",
             retention_period = Duration.hours(24),
-            stream_mode = kinesis.StreamMode.ON_DEMAND
+            stream_mode = kinesis.StreamMode.ON_DEMAND,
+            encryption = kinesis.StreamEncryption.MANAGED
             
         )
         
